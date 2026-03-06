@@ -14,8 +14,6 @@ Built with Python (Flask) on the backend and a dark-themed dashboard UI on the f
 - 🎨 Per-host cards with port table and risk classification (CRITICAL / HIGH / MEDIUM / LOW)
 - 🌐 ES / EN language toggle (full interface translation)
 - 📸 Export each host card as a PNG image (download or copy to clipboard)
-- 📱 Responsive layout for small screens
-
 ---
 
 ## 🚀 Installation
