@@ -1,4 +1,4 @@
-# 🔍 PrettyScan
+# 🔍✨PrettyScan
 
 **PrettyScan** is a visual web framework for network scanning, designed to produce clean, professional output suitable for corporate reports.
 
