@@ -78,16 +78,16 @@ header{background:linear-gradient(135deg,#0d1b2a,#1a0533);border-bottom:1px soli
 .card-btn:hover{border-color:var(--a);color:var(--a)}
 .card-btn.copy:hover{border-color:var(--a2);color:#a78bfa}
 .dc{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.35);font-weight:700}
-.scripts-panel{border-top:1px solid var(--bd);padding:.6rem 1.5rem;background:rgba(0,0,0,.15)}
-.scripts-toggle{display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.78rem;color:var(--mt);transition:color .2s;user-select:none;list-style:none}
+.script-inline{padding:.4rem .8rem .6rem;background:rgba(0,212,255,.03);border-top:1px dashed var(--bd)}
+.scripts-toggle{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.76rem;color:var(--mt);transition:color .2s;user-select:none}
 .scripts-toggle:hover{color:var(--a)}
-.scripts-toggle .arr{transition:transform .2s;font-style:normal}
-.scripts-toggle.open .arr{transform:rotate(90deg);display:inline-block}
-.scripts-body{display:none;margin-top:.6rem}
+.scripts-toggle .arr{transition:transform .2s;display:inline-block;font-size:.65rem}
+.scripts-toggle.open .arr{transform:rotate(90deg)}
+.scripts-body{display:none;margin-top:.5rem}
 .scripts-body.vis{display:block}
-.script-entry{margin-bottom:.5rem;padding:.4rem .7rem;background:var(--s2);border-radius:7px;border-left:3px solid var(--a)}
-.script-id{color:var(--a);font-weight:700;font-family:'Courier New',monospace;font-size:.76rem;margin-bottom:.2rem}
-.script-out{color:#94a3b8;font-size:.74rem;font-family:'Courier New',monospace;white-space:pre-wrap;word-break:break-word;line-height:1.45}
+.script-entry{margin-bottom:.4rem;padding:.35rem .6rem;background:var(--s2);border-radius:6px;border-left:3px solid var(--a)}
+.script-id{color:var(--a);font-weight:700;font-family:'Courier New',monospace;font-size:.74rem;margin-bottom:.15rem}
+.script-out{color:#94a3b8;font-size:.72rem;font-family:'Courier New',monospace;white-space:pre-wrap;word-break:break-word;line-height:1.4}
 .eb{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:1rem 1.5rem;border-radius:12px;font-size:.88rem;display:none;margin-bottom:1rem}
 #toast{position:fixed;bottom:2rem;right:2rem;background:#10b981;color:#fff;padding:.8rem 1.4rem;border-radius:10px;font-size:.88rem;font-weight:600;opacity:0;transform:translateY(10px);transition:all .3s;z-index:999;pointer-events:none}
 #toast.show{opacity:1;transform:translateY(0)}
@@ -214,12 +214,16 @@ async function exportCard(cardId,mode,ip){
   const el=document.getElementById(cardId);
   const overlay=document.getElementById('cap-overlay');
   overlay.classList.add('show');
+  // Hide buttons and script rows during capture
   const actions=el.querySelectorAll('.card-actions');
+  const noCapture=el.querySelectorAll('.no-capture');
   actions.forEach(a=>a.style.visibility='hidden');
-  await new Promise(r=>setTimeout(r,60));
+  noCapture.forEach(a=>a.style.display='none');
+  await new Promise(r=>setTimeout(r,80));
   try{
     const canvas=await html2canvas(el,{backgroundColor:'#111827',scale:2,useCORS:true,logging:false});
     actions.forEach(a=>a.style.visibility='visible');
+    noCapture.forEach(a=>a.style.display='');
     overlay.classList.remove('show');
     const safeIp=ip.replace(/[^0-9a-zA-Z._-]/g,'_');
     if(mode==='download'){
@@ -233,7 +237,11 @@ async function exportCard(cardId,mode,ip){
         catch(e){const link=document.createElement('a');link.download='prettyscan_'+safeIp+'_'+Date.now()+'.png';link.href=canvas.toDataURL('image/png');link.click();toast(T[lang].clipFail,false);}
       },'image/png');
     }
-  }catch(e){actions.forEach(a=>a.style.visibility='visible');overlay.classList.remove('show');}
+  }catch(e){
+    actions.forEach(a=>a.style.visibility='visible');
+    noCapture.forEach(a=>a.style.display='');
+    overlay.classList.remove('show');
+  }
 }
 
 async function run(){
@@ -282,44 +290,48 @@ function render(d){
       <button class="card-btn copy" onclick="exportCard('${cardId}','copy','${h.ip}')">📋 <span class="txt-copy-btn">${t.copyBtn}</span></button>
     </div>`;
     let pt='';
-    let scriptsPanel='';
     if(h.ports&&h.ports.length){
-      // Table — clean, no scripts column
-      pt=`<div class="pw"><table class="pt">
-        <thead><tr>
-          <th>${t.thPort}</th><th>${t.thProto}</th><th>${t.thState}</th>
-          <th>${t.thSvc}</th><th>${t.thVer}</th><th>${t.thRisk}</th>
-        </tr></thead>
-        <tbody>${h.ports.map(p=>`<tr>
+      const rows=h.ports.map((p,pi)=>{
+        // Scripts toggle row — only if port has scripts
+        let scriptRow='';
+        if(p.scripts&&p.scripts.length>0){
+          const sid=`sc-${cardId}-${pi}`;
+          const entries=p.scripts.map(s=>`<div class="script-entry">
+            <div class="script-id">${s.id}</div>
+            <div class="script-out">${s.output}</div>
+          </div>`).join('');
+          scriptRow=`<tr class="script-row no-capture">
+            <td colspan="6" style="padding:0;border:none">
+              <div class="script-inline">
+                <div class="scripts-toggle" id="st-${sid}" onclick="toggleScripts('${sid}')">
+                  <span class="arr">▶</span>
+                  <span class="txt-scripts-lbl">${T[lang].thScripts}</span>
+                  <span style="color:var(--a);font-weight:700;margin-left:.3rem">(${p.scripts.length})</span>
+                </div>
+                <div class="scripts-body" id="${sid}">${entries}</div>
+              </div>
+            </td>
+          </tr>`;
+        }
+        return`<tr>
           <td>${p.port}</td><td>${p.protocol||'tcp'}</td>
           <td class="${p.state}">${stateLabel(p.state)}</td>
           <td>${p.service||'-'}</td>
           <td style="color:var(--mt)">${p.version||'-'}</td>
           <td>${risk(p.port)}</td>
-        </tr>`).join('')}</tbody>
+        </tr>${scriptRow}`;
+      }).join('');
+      pt=`<div class="pw"><table class="pt">
+        <thead><tr>
+          <th>${t.thPort}</th><th>${t.thProto}</th><th>${t.thState}</th>
+          <th>${t.thSvc}</th><th>${t.thVer}</th><th>${t.thRisk}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
       </table></div>`;
-      // Scripts panel — collapsible, hidden during image capture
-      const allScripts=h.ports.filter(p=>p.scripts&&p.scripts.length>0);
-      if(allScripts.length>0){
-        const sid='scripts-'+cardId;
-        const entries=allScripts.map(p=>
-          p.scripts.map(s=>`<div class="script-entry">
-            <div class="script-id">${p.port}/tcp · ${s.id}</div>
-            <div class="script-out">${s.output}</div>
-          </div>`).join('')
-        ).join('');
-        scriptsPanel=`<div class="scripts-panel no-capture">
-          <div class="scripts-toggle" id="st-${sid}" onclick="toggleScripts('${sid}')">
-            <span class="arr">▶</span>
-            <span>${t.thScripts} <span style="color:var(--a);font-weight:700">(${allScripts.reduce((a,p)=>a+p.scripts.length,0)})</span></span>
-          </div>
-          <div class="scripts-body" id="${sid}">${entries}</div>
-        </div>`;
-      }
     }
     const div=document.createElement('div');
     div.className='hcard';div.id=cardId;
-    div.innerHTML=`<div class="hh"><div><div class="hip">${h.ip}</div>${hn}</div><div class="hi">${stTag}${os}${dcBadge}<span style="color:var(--mt);font-size:.8rem">${h.ports?h.ports.length:0} <span class="txt-ports">${t.ports}</span></span>${actions}</div></div>${pt}${scriptsPanel}`;
+    div.innerHTML=`<div class="hh"><div><div class="hip">${h.ip}</div>${hn}</div><div class="hi">${stTag}${os}${dcBadge}<span style="color:var(--mt);font-size:.8rem">${h.ports?h.ports.length:0} <span class="txt-ports">${t.ports}</span></span>${actions}</div></div>${pt}`;
     hc.appendChild(div);
   });
   document.getElementById('res').style.display='block';
@@ -331,16 +343,6 @@ function toggleScripts(sid){
   const toggle=document.getElementById('st-'+sid);
   body.classList.toggle('vis');
   toggle.classList.toggle('open');
-}
-
-// Hide .no-capture elements during card export
-const _origExport=exportCard;
-async function exportCard(cardId,mode,ip){
-  const card=document.getElementById(cardId);
-  const noPrint=card.querySelectorAll('.no-capture');
-  noPrint.forEach(e=>e.style.display='none');
-  await _origExport(cardId,mode,ip);
-  noPrint.forEach(e=>e.style.display='');
 }
 
 ['tgt','opt'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')run()}));
